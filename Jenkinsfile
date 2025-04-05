@@ -1,55 +1,59 @@
 pipeline {
     agent any
-    
+
     environment {
         AZURE_CREDENTIALS_ID = 'azure-service-principal'
         RESOURCE_GROUP = 'rg-jenkins'
         APP_SERVICE_NAME = 'webapijenkinshardik827813'
-        PYTHON_VERSION = '3.12'
-        PYTHON_PATH = 'C:\\Program Files\\Python312\\python.exe'
     }
-    
+
     stages {
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/Hardikgaur21/pythonwebapp.git'
             }
         }
-        
-        stage('Build') {
+
+        stage('Set Up Python Environment') {
             steps {
-                bat '''
-                    "%PYTHON_PATH%" --version
-                    "%PYTHON_PATH%" -m pip install --upgrade pip
-                    "%PYTHON_PATH%" -m pip install -r requirements.txt
-                '''
+                bat '"C:\\Users\\gaurh\\AppData\\Local\\Programs\\Python\\Python36\\python.exe" -m venv venv'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install --upgrade pip'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install -r requirements.txt'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install pytest'
             }
         }
-        
+
+        // stage('Run Tests') {
+        //     steps {
+        //         bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pytest'
+        //     }
+        // }
+
         stage('Deploy') {
             steps {
                 withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
-                    // Login to Azure
-                    bat 'az login --service-principal -u "%AZURE_CLIENT_ID%" -p "%AZURE_CLIENT_SECRET%" --tenant "%AZURE_TENANT_ID%"'
-                    bat 'az group create --name %RESOURCE_GROUP% --location eastus'
-                    bat 'az appservice plan create --name %APP_SERVICE_NAME%-plan --resource-group %RESOURCE_GROUP% --sku B1 --is-linux'
-                    bat 'az webapp create --resource-group %RESOURCE_GROUP% --plan %APP_SERVICE_NAME%-plan --name %APP_SERVICE_NAME% --runtime "PYTHON|%PYTHON_VERSION%"'
-         
-                    bat 'az webapp config set --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --startup-file "gunicorn --bind=0.0.0.0 --timeout 600 app:app"'
-                    bat  'powershell Compress-Archive -Path ./* -DestinationPath ./deploy.zip" -Force'
-  
-                    bat 'az webapp deploy --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --src-path ./deploy.zip --timeout 1800'
+                    bat '''
+                    if exist publish (rmdir /s /q publish)
+                    mkdir publish
+
+                    :: Copy .py files and requirements.txt to publish folder
+                    for %%f in (*.py) do copy "%%f" publish\\
+                    if exist requirements.txt copy requirements.txt publish\\
+                    '''
+                    bat 'az login --service-principal -u %AZURE_CLIENT_ID% -p %AZURE_CLIENT_SECRET% --tenant %AZURE_TENANT_ID%'
+                    bat 'powershell Compress-Archive -Path ./publish/* -DestinationPath ./publish.zip -Force'
+                    bat 'az webapp deploy --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --src-path ./publish.zip --type zip'
                 }
             }
         }
     }
-    
+
     post {
-        success {
-            echo 'Deployment Successful!'
-        }
         failure {
             echo 'Deployment Failed!'
+        }
+        success {
+            echo 'Deployment Successful!'
         }
     }
 }
