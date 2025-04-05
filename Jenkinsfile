@@ -16,7 +16,7 @@ pipeline {
 
         stage('Set Up Python Environment') {
             steps {
-                bat '"C:\\Users\\gaurh\\AppData\\Local\\Programs\\Python\\Python36\\python.exe" -m venv venv'
+                bat '"C:\\Program Files\\Python312\\python.exe" -m venv venv'
                 bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install --upgrade pip'
                 bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install -r requirements.txt'
                 bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install pytest'
